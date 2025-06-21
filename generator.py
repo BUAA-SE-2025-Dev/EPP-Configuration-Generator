@@ -65,11 +65,11 @@ class Configs:
     def append(self, conf_id: str, desc: str, default: str):
         self.configs.append(ConfEnt(conf_id, desc, default))
 
-    def export_as_map(self) -> Any:
+    def export_as_map(self) -> Dict[str, str]:
         output = {}
         for conf in self.configs:
             output[conf.id] = conf.default
-        for k, v in self.contents:
+        for k, v in self.contents.items():
             output[k] = v
         return output
 
