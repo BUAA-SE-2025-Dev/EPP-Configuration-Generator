@@ -172,17 +172,23 @@ class MainWindow(QWidget):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.content_widget = QWidget()
-        self.layout = QVBoxLayout(self.content_widget)
-        self.layout.addWidget(SeparatorWidget(self))
+        self.conent_layout = QVBoxLayout(self.content_widget)
+
+        self.hint_label = QLabel("留空则使用默认配置！", self)
+        self.hint_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.conent_layout.addWidget(self.hint_label)
+
+        self.conent_layout.addWidget(SeparatorWidget(self))
         self.entry_widgets = []
         for conf in configs.configs:
             entry_widget = ConfigEntryWidget(conf)
             entry_widget.line_edit.textEdited.connect(
                 self.mk_on_conf_edited(conf.id, entry_widget.line_edit)
             )
-            self.layout.addWidget(entry_widget)
-            self.layout.addWidget(SeparatorWidget(self))
+            self.conent_layout.addWidget(entry_widget)
+            self.conent_layout.addWidget(SeparatorWidget(self))
             self.entry_widgets.append(entry_widget)
+
         self.scroll_area.setWidget(self.content_widget)
         self.main_layout.addWidget(self.scroll_area)
 
