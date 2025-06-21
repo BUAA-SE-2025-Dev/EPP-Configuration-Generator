@@ -1,6 +1,8 @@
 meta:
   title: EPP 文献调研助手配置助手
   version: 1.0.0
+target:
+  base: epp-configuration-template
 config:
   subs:
     - ident: frontend
@@ -8,13 +10,13 @@ config:
         - ident: user
           subs:
             - ident: domain
-              description: 生产环境用户前端域名
-              default: user.example.com
+              description: 用户端 API 域名
+              default: api.example.com
         - ident: manager
           subs:
             - ident: domain
-              description: 生产环境管理员前端域名
-              default: manager.example.com
+              description: 管理端 API 域名
+              default: api.example.com
     - ident: backend
       subs:
         - ident: secret_key
