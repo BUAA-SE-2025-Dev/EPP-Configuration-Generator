@@ -48,7 +48,7 @@ config:
             - ident: simplify
               description: SimplifyAI API 密钥
               default: xxxxxxxxxxxxxxxx
-            - ident: serpapi
+            - ident: tavily
               description: Tavily API 密钥
               default: xxxxxxxxxxxxxxxx
             - ident: censor
