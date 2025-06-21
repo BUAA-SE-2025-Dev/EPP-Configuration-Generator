@@ -1,6 +1,8 @@
 import base64
+import os
 import sys
-from typing import List, Dict
+from typing import Any, List, Dict, Tuple
+from pathlib import Path
 from collections import namedtuple
 from json import loads as j_loads, dumps as j_dumps
 
@@ -15,25 +17,61 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QPushButton,
     QFrame,
+    QTextEdit,
+    QFileDialog,
+    QMessageBox,
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFileDialog, QMessageBox
+
 
 ConfEnt = namedtuple("ConfEnt", ["id", "desc", "default"])
-
 
 MENIFEST_PATH = "menifest.yaml"
 
 
+class FormatMap:
+    def __init__(self, data: dict = None):
+        self.data = data or {}
+
+    def __getitem__(self, key):
+        return self.data.get(key, "")
+
+    def __setitem__(self, key, value):
+        self.data[key] = value
+
+    def update(self, other: dict):
+        self.data.update(other)
+
+    def to_dict(self):
+        return dict(self.data)
+
+
 class Configs:
-    def __init__(self, title: str, version: str):
+    def __init__(self, title: str, version: str, base: str):
         self.title = title
         self.version = version
+        self.base = Path(base)
+        self.targets: List[Path] = []
         self.configs: List[ConfEnt] = []
         self.contents: Dict[str, str] = {}
 
+    def init_targets(self):
+        print("Parsing all the target files ...")
+        for p in self.base.rglob("*"):
+            if p.is_file():
+                self.targets.append(p)
+        print(f"We got {len(self.targets)} files in all")
+
     def append(self, conf_id: str, desc: str, default: str):
         self.configs.append(ConfEnt(conf_id, desc, default))
+
+    def export_as_map(self) -> Any:
+        output = {}
+        for conf in self.configs:
+            output[conf.id] = conf.default
+        for k, v in self.contents:
+            output[k] = v
+        return output
 
     def export_as_json(self) -> str:
         o = j_dumps(self.contents)
@@ -49,12 +87,32 @@ class Configs:
         for k, v in data.items():
             self.contents[k] = v
 
+    def export_as_config(
+        self, target_base: Path | None = None
+    ) -> List[Tuple[Path, str]]:
+        output = []
+        data = self.export_as_map()
+
+        for p in self.targets:
+            raw_text = p.read_text()
+            text = raw_text.format_map(data)
+
+            rel = p.relative_to(self.base)
+            if target_base is not None:
+                real = target_base / rel
+            else:
+                real = "fake_root" / rel
+
+            output.append((real, text))
+
+        return output
+
 
 def parse(configs: Configs, prefix: List[str], o: dict):
     if "ident" in o:
         prefix = prefix + [o["ident"]]
     if "description" in o:
-        configs.append(".".join(prefix), o["description"], o["default"])
+        configs.append("|".join(prefix), o["description"], o["default"])
     for sub in o.get("subs", []):
         parse(configs, prefix, sub)
 
@@ -130,6 +188,8 @@ class MainWindow(QWidget):
 
         self.save_button.clicked.connect(self.on_save_config)
         self.load_button.clicked.connect(self.on_load_config)
+        self.export_button.clicked.connect(self.on_export_config)
+        self.preview_button.clicked.connect(self.on_preview_config)
 
         self.setLayout(self.main_layout)
 
@@ -147,34 +207,86 @@ class MainWindow(QWidget):
         file_path, _ = QFileDialog.getSaveFileName(
             self, "选择保存配置的文件", "", "All Files (*)"
         )
-        if file_path:
-            try:
-                jstr = self.configs.export_as_json()
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(jstr)
-                QMessageBox.information(self, "保存成功", f"配置已保存到: {file_path}")
-            except Exception as e:
-                QMessageBox.critical(self, "保存失败", f"保存配置时出错:\n{e}")
+        if not file_path:
+            return
+        try:
+            jstr = self.configs.export_as_json()
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(jstr)
+            QMessageBox.information(self, "保存成功", f"配置已保存到: {file_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "保存失败", f"保存配置时出错:\n{e}")
 
     def on_load_config(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self, "选择要加载的配置文件", "", "All Files (*)"
         )
-        if file_path:
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    jstr = f.read()
-                self.configs.load_from_json(jstr)
-                # 更新界面
-                for conf, entry_widget in zip(self.configs.configs, self.entry_widgets):
-                    value = str(self.configs.contents.get(conf.id, conf.default))
-                    if value == conf.default:
-                        entry_widget.line_edit.setText("")
-                    else:
-                        entry_widget.line_edit.setText(value)
-                QMessageBox.information(self, "加载成功", f"配置已从: {file_path} 加载")
-            except Exception as e:
-                QMessageBox.critical(self, "加载失败", f"加载配置时出错:\n{e}")
+        if not file_path:
+            return
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                jstr = f.read()
+            self.configs.load_from_json(jstr)
+            # 更新界面
+            for conf, entry_widget in zip(self.configs.configs, self.entry_widgets):
+                value = str(self.configs.contents.get(conf.id, conf.default))
+                if value == conf.default:
+                    entry_widget.line_edit.setText("")
+                else:
+                    entry_widget.line_edit.setText(value)
+            QMessageBox.information(self, "加载成功", f"配置已从: {file_path} 加载")
+        except Exception as e:
+            QMessageBox.critical(self, "加载失败", f"加载配置时出错:\n{e}")
+
+    def on_export_config(self):
+        folder_path = QFileDialog.getExistingDirectory(
+            self, "选择导出文件夹（项目根目录）", ""
+        )
+        if not folder_path:
+            return
+        try:
+            folder_path = Path(folder_path) / "epp-configuration"
+            reply = QMessageBox.question(
+                self,
+                "确认导出",
+                f"确定要导出配置到: {folder_path} 吗？此操作将会覆盖其中的内容！",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+            os.makedirs(folder_path, exist_ok=True)
+
+            data = self.configs.export_as_config(folder_path)
+
+            for path, content in data:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content)
+                print(f"File {path} written!")
+
+            QMessageBox.information(self, "导出成功", f"配置已导出到: {folder_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "导出失败", f"导出配置时出错:\n{e}")
+
+    def on_preview_config(self):
+        data = self.configs.export_as_config()
+        msg = ""
+        for path, content in data:
+            msg += f"=====> {path} <=====\n{content}\n\n"
+
+        preview_widget = QWidget(self, flags=Qt.WindowType.Window)
+        preview_widget.setWindowTitle("配置预览")
+        preview_widget.setMinimumSize(600, 400)
+        layout = QVBoxLayout(preview_widget)
+        text_edit = QTextEdit()
+        text_edit.setReadOnly(True)
+        text_edit.setText(msg)
+        font = text_edit.font()
+        font.setFamily("Courier New")
+        font.setStyleHint(font.StyleHint.Monospace)
+        text_edit.setFont(font)
+        layout.addWidget(text_edit)
+        preview_widget.setWindowModality(Qt.WindowModality.ApplicationModal)
+        preview_widget.show()
 
 
 def launch_gui(configs: Configs):
@@ -186,12 +298,18 @@ def launch_gui(configs: Configs):
 
 if __name__ == "__main__":
     menifest = yaml.load(open(MENIFEST_PATH, "r"), yaml.SafeLoader)
-    configs = Configs(menifest["meta"]["title"], menifest["meta"]["version"])
+    configs = Configs(
+        menifest["meta"]["title"],
+        menifest["meta"]["version"],
+        menifest["target"]["base"],
+    )
     print(f"Welcome to {configs.title} Ver {configs.version}.")
 
     print("Parsing all the config items ...")
     parse(configs, list(), menifest["config"])
     print(f"We got {len(configs.configs)} config entries in all.")
+
+    configs.init_targets()
 
     r = launch_gui(configs)
 
