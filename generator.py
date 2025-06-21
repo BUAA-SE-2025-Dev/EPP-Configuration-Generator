@@ -251,7 +251,7 @@ class MainWindow(QWidget):
         if not folder_path:
             return
         try:
-            folder_path = Path(folder_path) / "epp-configuration"
+            folder_path = Path(folder_path) / "EPP-Configuration"
             reply = QMessageBox.question(
                 self,
                 "确认导出",
