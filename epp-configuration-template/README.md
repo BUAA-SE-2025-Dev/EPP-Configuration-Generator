@@ -19,7 +19,7 @@ ln -s path/to/this/repo/backend/development.env development.env
 
 ## 后端配置 EPP-Backend
 
-包含两项内容：`backend/development.env` 以及 `backend/product.env`，链接到后端根目录（与 `manage.py` 平级）。
+包含一项内容：`backend/development.env`，链接到后端根目录（与 `manage.py` 平级）。
 
 ## 前端配置
 

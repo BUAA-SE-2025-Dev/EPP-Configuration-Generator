@@ -5,6 +5,21 @@ target:
   base: epp-configuration-template
 config:
   subs:
+    - ident: core
+      subs:
+        - ident: path
+          subs:
+            - ident: frontend
+              subs:
+                - ident: user
+                  description: 用户前端文件夹名
+                  default: EPP-Frontend-Dev
+                - ident: manager
+                  description: 管理员前端文件夹名
+                  default: EPP-Frontend-Manager-Dev
+            - ident: backend
+              description: 后端文件夹名
+              default: EPP-Backend-Dev
     - ident: frontend
       subs:
         - ident: user
