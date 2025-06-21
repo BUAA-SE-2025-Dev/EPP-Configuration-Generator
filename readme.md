@@ -27,7 +27,7 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 而后启动配置助手：
 
 ```bash
-python generatoy.py
+python generator.py
 ```
 
 在其中可进行配置的填写，并进行保存、加载、导出、预览。

@@ -46,10 +46,10 @@ config:
               description: Deepseek API 密钥
               default: xxxxxxxxxxxxxxxx
             - ident: simplify
-              description: Simplify API 密钥
+              description: SimplifyAI API 密钥
               default: xxxxxxxxxxxxxxxx
             - ident: serpapi
-              description: Google Search API 密钥
+              description: Tavily API 密钥
               default: xxxxxxxxxxxxxxxx
             - ident: censor
               subs:
